@@ -13,7 +13,7 @@ const Cart = (props) => {
 
   const removeCartItem = (id) => {};
 
-  const addCartItem = (item) => {};
+  const addCartItem = (item) => { cartCtx.addItem({ item, amount: 1 })};
 
   const cartItems = (
     <ul className={classes["cart-items"]}>
