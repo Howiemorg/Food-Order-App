@@ -1,15 +1,18 @@
-import { useContext } from "react";
+import React, { useContext, useState } from "react";
 
 import classes from "./Cart.module.css";
 import Modal from "../UI/Modal";
 import CartContext from "../../store/cart-context";
 import CartItem from "./CartItem";
 import useHttp from "../Hooks/use-http";
+import Checkout from "./Checkout";
 
 const Cart = (props) => {
   const cartCtx = useContext(CartContext);
+  const [submitted, setSubmitted] = useState(false);
 
-  const { error, sendRequest } = useHttp();
+  const { error, isLoading, sendRequest } = useHttp();
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const totalAmount = `$${cartCtx.totalAmount.toFixed(2)}`;
   const hasItems = cartCtx.items.length > 0;
@@ -22,13 +25,19 @@ const Cart = (props) => {
     cartCtx.addItem({ ...item, amount: 1 });
   };
 
-  const addOrder = async () => {
+  const orderCheckout = () => {
+    setShowCheckout(true);
+  };
+
+  const addOrder = async (userData) => {
+    setSubmitted(false);
     const requestConfig = {
       url: "https://react-http-633e4-default-rtdb.firebaseio.com/orders.json",
       method: "POST",
       body: {
         meals: cartCtx.items,
         amount: cartCtx.totalAmount,
+        user: userData,
       },
       headers: {
         "Content-Type": "application/json",
@@ -37,8 +46,8 @@ const Cart = (props) => {
 
     sendRequest(requestConfig, () => {});
 
+    setSubmitted(true);
     cartCtx.removeAll();
-    props.onHideCart();
   };
 
   const cartItems = (
@@ -56,8 +65,36 @@ const Cart = (props) => {
     </ul>
   );
 
+  const modalActions = (
+    <div className={classes.actions}>
+      <button className={classes["button--alt"]} onClick={props.onHideCart}>
+        Close
+      </button>
+      {hasItems && (
+        <button className={classes.button} onClick={orderCheckout}>
+          Order
+        </button>
+      )}
+    </div>
+  );
+
+  if (isLoading) {
+    return <Modal>Sending order Data...</Modal>;
+  }
+
   if (error) {
-    return <Modal>Order Didn't go through</Modal>;
+    return <Modal>Order Didn't go through </Modal>;
+  }
+
+  if (submitted) {
+    return (
+      <Modal onClose={props.onHideCart}>
+        <p>Order Submitted</p>
+        <button className={classes["button--alt"]} onClick={props.onHideCart}>
+          Close
+        </button>
+      </Modal>
+    );
   }
   return (
     <Modal onClose={props.onHideCart}>
@@ -66,16 +103,10 @@ const Cart = (props) => {
         <span>Total Amount</span>
         <span>{totalAmount}</span>
       </div>
-      <div className={classes.actions}>
-        <button className={classes["button--alt"]} onClick={props.onHideCart}>
-          Close
-        </button>
-        {hasItems && (
-          <button className={classes.button} onClick={addOrder}>
-            Order
-          </button>
-        )}
-      </div>
+      {showCheckout && (
+        <Checkout onAddOrder={addOrder} onCancel={props.onHideCart} />
+      )}
+      {!showCheckout && modalActions}
     </Modal>
   );
 };
